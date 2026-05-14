@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>广州市长模拟器</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#1a1a2e;color:#e0e0e0;min-height:100vh;overflow-x:hidden}
+  .game-container{max-width:960px;margin:0 auto;padding:14px}
+
+  .header{text-align:center;padding:18px 0 10px;border-bottom:1px solid rgba(255,255,255,.1)}
+  .header h1{font-size:22px;font-weight:500;color:#ffd700;letter-spacing:3px}
+  .header p{font-size:12px;color:#888;margin-top:4px}
+
+  .cycle-axis{display:flex;align-items:center;gap:3px;margin:10px 0 4px;overflow:hidden}
+  .ca-node{width:10px;height:10px;border-radius:2px;background:#0f3460;flex-shrink:0;transition:all .3s}
+  .ca-node.done{background:#b8860b}
+  .ca-node.current{background:#ffd700;transform:scale(1.3)}
+  .ca-year-sep{width:2px;height:14px;background:rgba(255,255,255,.2);flex-shrink:0;margin:0 4px}
+
+  .status-bar{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:10px 0}
+  .stat-card{background:#16213e;border:0.5px solid rgba(255,215,0,.15);border-radius:8px;padding:8px 6px;text-align:center}
+  .stat-label{font-size:10px;color:#888;margin-bottom:3px}
+  .stat-value{font-size:17px;font-weight:500;color:#ffd700}
+  .stat-sub{font-size:10px;color:#666;margin-top:1px}
+  .stat-card.hidden-score .stat-value{color:#444;font-style:italic}
+  .confidential-tag{display:inline-block;font-size:9px;padding:1px 5px;background:rgba(255,215,0,.1);color:#b8860b;border-radius:3px;border:0.5px solid rgba(255,215,0,.2);margin-left:3px}
+
+  .progress-section{margin:6px 0}
+  .progress-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+  .progress-label{font-size:11px;color:#888;width:65px;flex-shrink:0}
+  .progress-bar{flex:1;height:7px;background:#0f3460;border-radius:4px;overflow:hidden}
+  .progress-fill{height:100%;border-radius:4px;transition:width .4s ease}
+  .fill-gdp{background:#ffd700}
+  .fill-approval{background:#4ade80}
+  .fill-boss{background:#60a5fa}
+  .fill-risk{background:#f87171}
+  .progress-val{font-size:11px;color:#ccc;width:30px;text-align:right;flex-shrink:0}
+
+  .main-content{display:grid;grid-template-columns:1fr 380px;gap:10px;margin-top:10px}
+
+  .panel{background:#16213e;border:0.5px solid rgba(255,255,255,.1);border-radius:10px;padding:12px}
+  .panel-title{font-size:13px;font-weight:500;color:#ffd700;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .panel-title::before{content:"";display:inline-block;width:3px;height:13px;background:#ffd700;border-radius:2px}
+
+  .event-scroll{max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+  .event-card{background:#0f3460;border-radius:8px;padding:9px 11px;border-left:3px solid #ffd700;font-size:12px;line-height:1.6}
+  .event-card.bad{border-left-color:#f87171}
+  .event-card.good{border-left-color:#4ade80}
+  .event-card.neutral{border-left-color:#60a5fa}
+  .event-card.ambient{border-left-color:#a78bfa;background:#0d2647}
+  .event-title{font-weight:500;color:#e0e0e0;margin-bottom:2px;font-size:12px}
+  .event-desc{color:#999;font-size:11px}
+  .event-tag{display:inline-block;font-size:9px;padding:1px 5px;border-radius:3px;margin-right:3px}
+  .tag-danger{background:rgba(248,113,113,.15);color:#f87171}
+  .tag-good{background:rgba(74,222,128,.15);color:#4ade80}
+  .tag-info{background:rgba(96,165,250,.15);color:#60a5fa}
+  .tag-warn{background:rgba(251,191,36,.15);color:#fbbf24}
+  .tag-ambient{background:rgba(167,139,250,.15);color:#a78bfa}
+
+  .action-priority-hint{font-size:11px;color:#ffd700;background:rgba(255,215,0,.06);border-radius:6px;padding:7px 9px;margin-bottom:8px;line-height:1.8;border:0.5px solid rgba(255,215,0,.12)}
+  .action-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+  .action-btn{background:#0f3460;border:0.5px solid rgba(255,255,255,.12);border-radius:8px;padding:8px 7px;cursor:pointer;text-align:center;transition:all .2s;color:#ccc;font-size:11px;position:relative}
+  .action-btn:hover{background:#1a4a8a;border-color:rgba(255,215,0,.3)}
+  .action-btn.selected1{border-color:#ffd700;color:#ffd700;background:rgba(255,215,0,.07)}
+  .action-btn.selected2{border-color:#60a5fa;color:#60a5fa;background:rgba(96,165,250,.07)}
+  .action-btn.selected3{border-color:#4ade80;color:#4ade80;background:rgba(74,222,128,.07)}
+  .action-btn .a-icon{font-size:18px;display:block;margin-bottom:3px}
+  .action-btn .a-name{font-weight:500;font-size:11px}
+  .action-btn .a-desc{font-size:10px;color:#777;margin-top:2px;line-height:1.3}
+  .action-btn.selected1 .a-desc,.action-btn.selected2 .a-desc,.action-btn.selected3 .a-desc{color:inherit}
+  .priority-badge{position:absolute;top:4px;right:4px;width:16px;height:16px;border-radius:50%;font-size:9px;display:flex;align-items:center;justify-content:center;font-weight:700}
+  .pb1{background:#ffd700;color:#1a1a2e}
+  .pb2{background:#60a5fa;color:#fff}
+  .pb3{background:#4ade80;color:#1a1a2e}
+  .confirm-area{margin-top:8px}
+  .confirm-btn{width:100%;padding:10px;background:#b8860b;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:500;cursor:pointer;letter-spacing:1px;transition:background .2s}
+  .confirm-btn:hover{background:#ffd700;color:#1a1a2e}
+  .confirm-btn:disabled{background:#2a2a3e;color:#555;cursor:default}
+  .action-count{font-size:10px;color:#888;text-align:center;margin-top:5px;min-height:14px}
+
+  .log-panel{max-height:250px;overflow-y:auto;display:flex;flex-direction:column;gap:5px}
+  .log-entry{font-size:11px;line-height:1.6;padding:7px 9px;border-radius:6px;background:#0f3460}
+  .log-entry.type-good{background:rgba(74,222,128,.07);border-left:2px solid #4ade80}
+  .log-entry.type-bad{background:rgba(248,113,113,.07);border-left:2px solid #f87171}
+  .log-entry.type-info{background:rgba(96,165,250,.07);border-left:2px solid #60a5fa}
+  .log-entry.type-year{background:rgba(255,215,0,.06);border-left:2px solid #ffd700}
+
+  .year-reveal{background:#0f3460;border-radius:8px;padding:12px;margin:8px 0;border:1px solid rgba(255,215,0,.15)}
+  .yr-title{font-size:12px;color:#ffd700;margin-bottom:8px;font-weight:500}
+  .reveal-card{display:flex;align-items:center;gap:10px;padding:7px 10px;background:#0d2647;border-radius:8px;margin-bottom:5px}
+  .reveal-card .rc-icon{font-size:22px}
+  .reveal-card .rc-info{flex:1}
+  .reveal-card .rc-name{font-size:11px;color:#888}
+  .reveal-card .rc-value{font-size:20px;font-weight:500;color:#ffd700}
+  .reveal-card .rc-delta{font-size:12px;font-weight:500}
+  .rc-delta.up{color:#4ade80}
+  .rc-delta.down{color:#f87171}
+  .rc-delta.neutral{color:#888}
+
+  ::-webkit-scrollbar{width:4px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:#0f3460;border-radius:2px}
+
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:100;display:none}
+  .overlay.active{display:flex}
+  .modal{background:#16213e;border:1px solid rgba(255,215,0,.3);border-radius:16px;padding:28px;max-width:520px;width:92%;text-align:center}
+  .modal-icon{font-size:60px;margin-bottom:14px}
+  .modal-title{font-size:18px;font-weight:500;color:#ffd700;margin-bottom:8px;word-break:break-all}
+  .modal-subtitle{font-size:13px;color:#aaa;margin-bottom:18px;line-height:1.9;text-align:left}
+  .modal-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px}
+  .modal-stat{background:#0f3460;border-radius:8px;padding:9px}
+  .modal-stat .ms-label{font-size:10px;color:#888}
+  .modal-stat .ms-val{font-size:17px;font-weight:500;color:#ffd700}
+  .modal-close-btn{padding:9px 28px;background:#b8860b;border:none;border-radius:8px;color:#fff;font-size:13px;cursor:pointer;font-weight:500}
+  .modal-close-btn:hover{background:#ffd700;color:#1a1a2e}
+  .ending-bad{color:#f87171}
+  .ending-great{color:#ffd700}
+  .ending-ok{color:#4ade80}
+  .ending-neutral{color:#60a5fa}
+  .modal-desc-line{font-size:12px;color:#666;text-align:center;margin-top:-8px;margin-bottom:14px}
+
+  .start-screen{text-align:center;padding:50px 20px}
+  .start-title{font-size:28px;color:#ffd700;margin-bottom:10px;letter-spacing:4px}
+  .start-subtitle{font-size:14px;color:#888;margin-bottom:28px}
+  .start-btn{padding:12px 40px;background:#b8860b;border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:500;cursor:pointer;letter-spacing:2px}
+  .start-btn:hover{background:#ffd700;color:#1a1a2e}
+  .start-desc{font-size:12px;color:#555;margin-top:18px;line-height:2}
+
+  /* ===== 排行榜 ===== */
+  .leaderboard-section{margin-top:16px;border-top:1px solid rgba(255,215,0,.12);padding-top:14px}
+  .leaderboard-title{font-size:13px;color:#ffd700;font-weight:500;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .lb-tabs{display:flex;gap:6px;margin-bottom:8px}
+  .lb-tab{padding:4px 12px;background:#0f3460;border:0.5px solid rgba(255,255,255,.12);border-radius:6px;color:#888;font-size:11px;cursor:pointer;transition:all .2s}
+  .lb-tab.active{background:rgba(255,215,0,.1);border-color:rgba(255,215,0,.4);color:#ffd700}
+  .lb-list{max-height:200px;overflow-y:auto}
+  .lb-entry{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;margin-bottom:4px;font-size:11px;background:#0f3460}
+  .lb-rank{width:20px;text-align:center;font-weight:700;color:#ffd700;font-size:12px;flex-shrink:0}
+  .lb-rank.gold{color:#ffd700}
+  .lb-rank.silver{color:#c0c0c0}
+  .lb-rank.bronze{color:#cd7f32}
+  .lb-info{flex:1;min-width:0}
+  .lb-name{font-size:12px;color:#e0e0e0;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lb-meta{font-size:10px;color:#666}
+  .lb-score{text-align:right;flex-shrink:0}
+  .lb-gdp{font-size:12px;color:#ffd700;font-weight:500}
+  .lb-risk{font-size:10px;color:#888}
+  .lb-badge{display:inline-block;font-size:9px;padding:1px 4px;border-radius:3px;margin-left:4px}
+  .lb-badge.good{background:rgba(74,222,128,.15);color:#4ade80}
+  .lb-badge.bad{background:rgba(248,113,113,.15);color:#f87171}
+  .lb-badge.neutral{background:rgba(96,165,250,.15);color:#60a5fa}
+  .lb-badge.great{background:rgba(255,215,0,.15);color:#ffd700}
+  .lb-empty{text-align:center;color:#555;font-size:11px;padding:20px 0}
+  .lb-actions{display:flex;gap:6px;margin-top:8px}
+  .lb-btn{flex:1;padding:5px;background:#0f3460;border:0.5px solid rgba(255,255,255,.12);border-radius:6px;color:#888;font-size:10px;cursor:pointer;transition:all .2s;text-align:center}
+  .lb-btn:hover{background:#1a4a8a;border-color:rgba(255,215,0,.3);color:#ffd700}
+  .lb-hint{font-size:10px;color:#555;text-align:center;margin-top:6px}
+
+  /* ===== 结局代号称重 ===== */
+  .name-input-section{margin:12px 0 8px;padding:10px;background:#0f3460;border-radius:8px;border:1px solid rgba(255,215,0,.2)}
+  .name-input-label{font-size:11px;color:#aaa;margin-bottom:6px}
+  .name-input-row{display:flex;gap:6px;align-items:center}
+  .name-input{flex:1;background:#16213e;border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:7px 10px;color:#ffd700;font-size:13px;outline:none;transition:border-color .2s}
+  .name-input:focus{border-color:rgba(255,215,0,.5)}
+  .name-input::placeholder{color:#555}
+  .name-save-btn{padding:7px 14px;background:#b8860b;border:none;border-radius:6px;color:#fff;font-size:12px;cursor:pointer;font-weight:500;flex-shrink:0;transition:background .2s}
+  .name-save-btn:hover{background:#ffd700;color:#1a1a2e}
+  .name-save-btn:disabled{background:#2a2a3e;color:#555;cursor:default}
+  .name-tip{font-size:10px;color:#555;margin-top:5px}
+  .name-skip-btn{font-size:10px;color:#555;cursor:pointer;text-align:center;margin-top:4px;transition:color .2s}
+  .name-skip-btn:hover{color:#888}
+  .name-skip-btn.hidden{visibility:hidden}
+
+  /* ===== 高光/最差时刻 ===== */
+  .highlight-section{margin:12px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .highlight-card{border-radius:10px;padding:10px 12px;border:1px solid rgba(255,255,255,.1)}
+  .highlight-card.best{background:rgba(74,222,128,.07);border-color:rgba(74,222,128,.25)}
+  .highlight-card.worst{background:rgba(248,113,113,.07);border-color:rgba(248,113,113,.25)}
+  .highlight-label{font-size:10px;font-weight:700;letter-spacing:1px;margin-bottom:5px;display:flex;align-items:center;gap:4px}
+  .highlight-card.best .highlight-label{color:#4ade80}
+  .highlight-card.worst .highlight-label{color:#f87171}
+  .highlight-title{font-size:12px;font-weight:500;color:#e0e0e0;margin-bottom:4px;line-height:1.4}
+  .highlight-meta{font-size:10px;color:#888;margin-bottom:5px}
+  .highlight-delta{font-size:11px;font-weight:600}
+  .highlight-card.best .highlight-delta{color:#4ade80}
+  .highlight-card.worst .highlight-delta{color:#f87171}
+
+  /* ===== 联网排行榜配置 ===== */
+  .api-config{margin-top:10px;padding:8px 10px;background:rgba(255,215,0,.04);border-radius:8px;border:0.5px solid rgba(255,215,0,.1)}
+  .api-config-title{font-size:11px;color:#ffd700;margin-bottom:6px;font-weight:500;display:flex;align-items:center;gap:4px}
+  .api-row{display:flex;gap:5px;align-items:center;margin-bottom:4px}
+  .api-input{flex:1;background:#16213e;border:1px solid rgba(255,255,255,.12);border-radius:5px;padding:5px 7px;color:#ffd700;font-size:10px;outline:none;min-width:0}
+  .api-input:focus{border-color:rgba(255,215,0,.4)}
+  .api-input::placeholder{color:#555}
+  .api-btn{padding:5px 8px;background:#0f3460;border:0.5px solid rgba(255,255,255,.1);border-radius:5px;color:#aaa;font-size:10px;cursor:pointer;transition:all .2s;white-space:nowrap}
+  .api-btn:hover{background:#1a4a8a;border-color:rgba(255,215,0,.3);color:#ffd700}
+  .api-btn.active{background:rgba(74,222,128,.15);border-color:rgba(74,222,128,.3);color:#4ade80}
+  .api-hint{font-size:9px;color:#555;margin-top:4px}
+  .lb-online-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:2px 6px;background:rgba(74,222,128,.1);color:#4ade80;border-radius:10px;border:0.5px solid rgba(74,222,128,.2);margin-left:6px}
+  .lb-online-badge.offline{background:rgba(255,255,255,.04);color:#555;border-color:rgba(255,255,255,.08)}
+</style>
+</head>
+<body>
+<div class="game-container">
+  <div id="startScreen" class="start-screen">
+    <div class="start-title">广州市长模拟器</div>
+    <div class="start-subtitle">2027年就任 &middot; 五年任期 &middot; 前途未知</div>
+    <button class="start-btn" onclick="startGame()">走马上任</button>
+    <div class="start-desc">
+      5年任期 / 30个双月周期 / GDP·民心·上级·廉洁四大指标<br>
+      每年末揭晓一次真实的民心与上级印象（平时保持神秘）<br>
+      提前落马、提前提拔、平调、退居二线、被抓……<br>
+      ⚠️ 注意：廉洁风险即使任上未暴露，离任后仍可能被追责！<br>
+      你的每一个决策，都将决定最终的命运
+    </div>
+    <div class="leaderboard-section">
+      <div class="leaderboard-title">🏆 施政排行榜 <span id="lbCount" style="font-size:11px;color:#666;font-weight:normal"></span><span id="lbOnlineBadge" class="lb-online-badge offline">未连接</span></div>
+      <div class="lb-tabs">
+        <div class="lb-tab active" id="lbTabGDP" onclick="switchLbTab('gdp')">📈 GDP最高</div>
+        <div class="lb-tab" id="lbTabRisk" onclick="switchLbTab('risk')">⚖️ 廉洁之最</div>
+        <div class="lb-tab" id="lbTabCycle" onclick="switchLbTab('cycle')">⏱️ 任期最长</div>
+      </div>
+      <div class="lb-list" id="lbList"></div>
+      <div class="lb-actions">
+        <div class="lb-btn" id="lbOnlineBtn" onclick="toggleOnlineMode()">🌐 加入联网排行</div>
+        <div class="lb-btn" onclick="document.getElementById('lbImportFile').click()">📥 导入记录</div>
+        <input type="file" id="lbImportFile" accept=".json" style="display:none" onchange="importLeaderboard(this)">
+        <div class="lb-btn" onclick="exportLeaderboard()">📤 导出记录</div>
+      </div>
+      <div id="apiConfig" style="display:none" class="api-config">
+        <div class="api-config-title">🌐 JSONBin.io 联网配置（免费，无需注册）</div>
+        <div class="api-row">
+          <input type="text" class="api-input" id="apiBinId" placeholder="Bin ID（如：67f1a2b3c4d5e6f7a8b9c0d1）" maxlength="50">
+        </div>
+        <div class="api-row">
+          <input type="text" class="api-input" id="apiKey" placeholder="Access Key（可选，私有Bin需要）" maxlength="80">
+        </div>
+        <div class="api-row">
+          <button class="api-btn active" id="apiConnectBtn" onclick="connectOnline()">✅ 连接</button>
+          <button class="api-btn" onclick="testOnlineConnection()">🔄 测试连接</button>
+          <button class="api-btn" onclick="document.getElementById('apiConfig').style.display='none'">收起</button>
+        </div>
+        <div class="api-hint">① 打开 <u onclick="window.open('https://jsonbin.io/')" style="color:#ffd700;cursor:pointer">jsonbin.io</u> 创建 Collection → ② 复制 Bin ID 粘贴上方 → ③ 可选填 Access Key → ④ 点击连接 · 好友共享同一 Bin ID 即可同榜竞争</div>
+      </div>
+      <div class="lb-hint" id="lbHint">💡 导出后可分享 JSON 给朋友；或连接联网排行榜实时对战</div>
+    </div>
+  </div>
+
+  <div id="gameUI" style="display:none">
+    <div class="header">
+      <h1>广州市长模拟器</h1>
+      <p id="headerSubtitle">2027年就任 &middot; 五年任期 &middot; 前途未知</p>
+    </div>
+
+    <div style="margin:8px 0 2px">
+      <div class="cycle-axis" id="cycleAxis"></div>
+    </div>
+
+    <div class="status-bar">
+      <div class="stat-card">
+        <div class="stat-label">周期</div>
+        <div class="stat-value" id="sCycle">1</div>
+        <div class="stat-sub">/ 30</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">GDP指数</div>
+        <div class="stat-value" id="sGDP">100</div>
+        <div class="stat-sub">基准100</div>
+      </div>
+      <div class="stat-card hidden-score" id="cardApproval">
+        <div class="stat-label">民心<span class="confidential-tag">机密</span></div>
+        <div class="stat-value" id="sApproval">--</div>
+        <div class="stat-sub">每年揭晓</div>
+      </div>
+      <div class="stat-card hidden-score" id="cardBoss">
+        <div class="stat-label">上级印象<span class="confidential-tag">机密</span></div>
+        <div class="stat-value" id="sBoss">--</div>
+        <div class="stat-sub">每年揭晓</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">廉洁风险</div>
+        <div class="stat-value" id="sRisk" style="color:#f87171">0</div>
+        <div class="stat-sub">/ 100</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">当期时段</div>
+        <div class="stat-value" id="sPeriod" style="font-size:13px">2027.01-02</div>
+        <div class="stat-sub" id="sYearInfo">第 1 / 5 年</div>
+      </div>
+    </div>
+
+    <div class="progress-section">
+      <div class="progress-row"><span class="progress-label">GDP</span><div class="progress-bar"><div class="progress-fill fill-gdp" id="bGDP" style="width:50%"></div></div><span class="progress-val" id="pGDP">100</span></div>
+      <div class="progress-row"><span class="progress-label">廉洁风险</span><div class="progress-bar"><div class="progress-fill fill-risk" id="bRisk" style="width:0%"></div></div><span class="progress-val" id="pRisk">0</span></div>
+    </div>
+
+    <div id="revealArea" style="display:none">
+      <div class="year-reveal">
+        <div class="yr-title" id="yrTitle">📊 年度施政评价揭晓</div>
+        <div id="revealSection"></div>
+      </div>
+    </div>
+
+    <div class="main-content">
+      <div>
+        <div class="panel">
+          <div class="panel-title">本周期要闻动态 <span style="color:#888;font-size:11px">（共 <span id="eventCount">0</span> 条，请自行判断重要性）</span></div>
+          <div class="event-scroll" id="eventList">
+            <div style="color:#666;font-size:12px;text-align:center;padding:20px">正在加载...</div>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:8px">
+          <div class="panel-title">施政日志</div>
+          <div class="log-panel" id="logPanel">
+            <div class="log-entry type-year"><div style="font-size:10px;color:#888">2027年1-2月</div>就职广州市长，任期正式开始。百废待兴，全市上下充满期待，你将如何书写这五年？</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel">
+          <div class="panel-title" id="actionTitle">选择本周期工作重点</div>
+          <div class="action-priority-hint" id="priorityHint">
+            <b>精力分配规则：</b><br>
+            <span style="color:#ffd700">① 第一优先</span> = <b>50%</b> 精力 &nbsp;
+            <span style="color:#60a5fa">② 第二优先</span> = <b>30%</b> 精力 &nbsp;
+            <span style="color:#4ade80">③ 第三优先</span> = <b>20%</b> 精力<br>
+            <span style="color:#888;font-size:10px">点击同一行动可在三种优先级间循环切换（最多选3项）</span>
+          </div>
+          <div class="action-grid" id="actionGrid"></div>
+          <div class="action-count" id="actionCount">尚未选择任何行动</div>
+          <div class="confirm-area">
+            <button class="confirm-btn" id="confirmBtn" onclick="confirmCycle()" disabled>确认本周期行动</button>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:8px">
+          <div class="panel-title">施政顾问提示</div>
+          <div id="advisorTip" style="font-size:11px;color:#aaa;line-height:1.8"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="endingOverlay">
+  <div class="modal">
+    <div class="modal-icon" id="endingIcon">🎖️</div>
+    <div class="modal-title" id="endingTitle">任期结束</div>
+    <div class="modal-subtitle" id="endingDesc"></div>
+
+    <!-- 高光/最差时刻 -->
+    <div class="highlight-section" id="highlightSection">
+      <div class="highlight-card best">
+        <div class="highlight-label">⭐ 高光时刻</div>
+        <div class="highlight-title" id="hlBestTitle">—</div>
+        <div class="highlight-meta" id="hlBestMeta">—</div>
+        <div class="highlight-delta" id="hlBestDelta"></div>
+      </div>
+      <div class="highlight-card worst">
+        <div class="highlight-label">💀 最差决策</div>
+        <div class="highlight-title" id="hlWorstTitle">—</div>
+        <div class="highlight-meta" id="hlWorstMeta">—</div>
+        <div class="highlight-delta" id="hlWorstDelta"></div>
+      </div>
+    </div>
+
+    <div class="modal-stats" id="endingStats"></div>
+    <div class="modal-desc-line" id="modalDescLine"></div>
+    <div class="name-input-section" id="nameInputSection">
+      <div class="name-input-label">📝 留名青史（输入你的代号，将登上排行榜）：</div>
+      <div class="name-input-row">
+        <input type="text" class="name-input" id="playerNameInput" placeholder="最多8字，如：羊城过客" maxlength="8">
+        <button class="name-save-btn" id="nameSaveBtn" onclick="saveToLeaderboard()">留名</button>
+      </div>
+      <div class="name-tip" id="nameTip">也可以留空直接开始新游戏</div>
+      <div class="name-skip-btn" id="nameSkipBtn" onclick="skipAndRestart()">跳过 · 直接开始新游戏</div>
+    </div>
+    <button class="modal-close-btn" id="restartBtn" onclick="restartGame()" style="display:none">重新挑战</button>
+  </div>
+</div>
+
+<script>
+var TOTAL_CYCLES = 30;
+var CYCLES_PER_YEAR = 6;
+
+var ACTIONS = [
+  {id:'visit_boss',   icon:'🤝',name:'拜访上级领导',   desc:'赴省委省政府汇报工作，争取资源支持', gdp:0,  approval:0, boss:8,  risk:0,  varBoss:5},
+  {id:'local_survey', icon:'🚶',name:'本地基层调研',   desc:'深入街道社区，了解真实民生诉求', gdp:2,  approval:6, boss:2,  risk:0,  varBoss:2},
+  {id:'attract_invest',icon:'✈️',name:'外出招商引资',   desc:'赴外省/外国对接大型投资项目落地', gdp:10, approval:1, boss:4,  risk:0,  varGDP:7},
+  {id:'meeting',      icon:'📋',name:'内部会议部署',   desc:'召集各部门协调，推进重点工程', gdp:3,  approval:1, boss:2,  risk:0},
+  {id:'media',        icon:'📺',name:'媒体形象公关',   desc:'出席公开发布会，塑造亲民形象', gdp:0,  approval:7, boss:3,  risk:0},
+  {id:'businessman',  icon:'🍽️',name:'与富商企业家会餐',desc:'非正式渠道推动项目，暗藏风险', gdp:5,  approval:-1,boss:1,  risk:10, varRisk:8},
+  {id:'infra',        icon:'🏗️',name:'推进重大基建',   desc:'高铁、机场、地铁等重点工程提速', gdp:12, approval:4, boss:6,  risk:0,  varGDP:9},
+  {id:'livelihood',   icon:'🏥',name:'民生工程攻坚',   desc:'教育、医疗、住房保障集中突破', gdp:-1, approval:12,boss:4,  risk:0},
+  {id:'env',          icon:'🌿',name:'生态环保整治',   desc:'推动碧水蓝天行动，提升城市品质', gdp:-2, approval:8, boss:3,  risk:0},
+  {id:'crisis',       icon:'🚨',name:'危机应急处置',   desc:'快速处置突发舆情和自然灾害', gdp:0,  approval:6, boss:5,  risk:-4},
+  {id:'reform',       icon:'📊',name:'营商环境改革',   desc:'推动行政审批和制度改革创新', gdp:4,  approval:5, boss:7,  risk:0},
+  {id:'culture',      icon:'🎭',name:'文化品牌塑造',   desc:'打造城市文化IP，提升软实力', gdp:2,  approval:6, boss:4,  risk:0},
+];
+
+var MAJOR_EVENTS = [
+  {id:'typhoon',    title:'强台风"木兰"正面袭击',desc:'珠三角多地受灾，基础设施严重损毁',type:'bad',tags:['天灾'],gdp:-10,approval:-6,boss:-3},
+  {id:'flood',      title:'百年一遇暴雨内涝',desc:'海珠、番禺大面积内涝，多条主干道中断',type:'bad',tags:['天灾'],gdp:-7,approval:-5,boss:-2},
+  {id:'trade_war',  title:'中美贸易摩擦升级冲击',desc:'美对华商品加征关税，外贸企业订单大幅减少',type:'bad',tags:['外部'],gdp:-15,approval:-4,boss:-3},
+  {id:'realestate', title:'房地产市场持续深度调整',desc:'多个大型开发商流动性危机，项目烂尾风险上升',type:'bad',tags:['经济'],gdp:-9,approval:-5,boss:-3},
+  {id:'accident',   title:'南沙化工厂爆燃事故',desc:'发生重大安全生产事故，省调查组进驻',type:'bad',tags:['安全'],gdp:-4,approval:-10,boss:-7},
+  {id:'epidemic',   title:'新型传染病橙色预警',desc:'省卫健委发布警报，部分区域管控升级',type:'bad',tags:['公卫'],gdp:-6,approval:-7,boss:-4},
+  {id:'pro_policy', title:'省级支持政策包下达',desc:'省委出台专项政策，多项利好叠加',type:'good',tags:['政策'],gdp:8,approval:4,boss:7},
+  {id:'mega_proj',  title:'国家级重大项目落户',desc:'国际科创中心在广州挂牌，百亿级投资落地',type:'good',tags:['招商'],gdp:14,approval:6,boss:9},
+  {id:'canton_fair',title:'广交会成交创历史新高',desc:'本届广交会采购商数量和成交额双创新高',type:'good',tags:['外贸'],gdp:10,approval:5,boss:5},
+  {id:'ai_boom',    title:'人工智能产业集群爆发',desc:'琶洲AI算力集群成形，高新企业数量倍增',type:'good',tags:['产业'],gdp:15,approval:6,boss:8},
+  {id:'railway',    title:'高铁枢纽新线开通',desc:'广州铁路枢纽能级大幅跃升，沿线投资热潮涌现',type:'good',tags:['基建'],gdp:9,approval:10,boss:7},
+  {id:'reform_award',title:'营商环境全国标杆',desc:'广州入选全国营商环境示范城市，经验全国推广',type:'good',tags:['改革'],gdp:5,approval:7,boss:10},
+  {id:'corruption', title:'系统内腐败窝案曝光',desc:'省纪委通报广州系统多起违纪违法案件',type:'bad',tags:['纪检'],gdp:0,approval:-6,boss:-8,risk:12},
+  {id:'metro_chaos',title:'地铁大面积延误故障',desc:'早高峰地铁停摆，大量市民出行受阻',type:'bad',tags:['民生'],gdp:-2,approval:-9,boss:-4},
+  {id:'debt',       title:'城投平台债务风险预警',desc:'部分城投再融资困难，财政压力骤增',type:'bad',tags:['财政'],gdp:-7,approval:-3,boss:-5},
+  {id:'sports',     title:'亚运筹备全面加速',desc:'重大赛事城市形象工程进入冲刺阶段',type:'good',tags:['活动'],gdp:5,approval:8,boss:8},
+  {id:'consumption',title:'消费刺激政策成效显著',desc:'消费券发放叠加节庆活动，社零总额创历史新高',type:'good',tags:['内需'],gdp:8,approval:10,boss:4},
+  {id:'tech_export',title:'科技企业出海获大单',desc:'多家本地科技企业在东南亚连中大型项目',type:'good',tags:['外贸'],gdp:7,approval:4,boss:6},
+  {id:'drought',    title:'高温干旱持续预警',desc:'珠江水位偏低，能源供应和农业灌溉受影响',type:'bad',tags:['天灾'],gdp:-5,approval:-5,boss:-2},
+  {id:'protest',    title:'群体性事件舆情发酵',desc:'某区域发生群体聚集事件，网上视频广泛传播',type:'bad',tags:['舆情'],gdp:-3,approval:-8,boss:-6},
+  {id:'tech_leader',title:'头部企业总部迁入',desc:'国内某互联网巨头宣布将总部迁至广州',type:'good',tags:['招商'],gdp:12,approval:5,boss:7},
+  {id:'housing',    title:'保障房建设全面提速',desc:'全年开工保障房数量超额完成年度目标',type:'good',tags:['民生'],gdp:3,approval:9,boss:5},
+  {id:'energy',     title:'能源价格剧烈波动',desc:'国际能源价格传导至本地，企业用电成本飙升',type:'bad',tags:['经济'],gdp:-8,approval:-4,boss:-2},
+  {id:'ceramics',   title:'陶瓷出口遭遇反倾销',desc:'欧盟对华瓷砖征收高额关税，本地陶瓷产业受冲击',type:'bad',tags:['外贸'],gdp:-6,approval:-3,boss:-2},
+];
+
+var AMBIENT_EVENTS = [
+  {id:'song_chengdu',  title:'《成都》城市歌曲刷屏',desc:'一首关于城市的民谣在短视频平台爆火，引来无数年轻人打卡',approval:6,boss:2},
+  {id:'subway_design', title:'地铁口被嘲"棺材造型"',desc:'新开通地铁口的设计引发网友群嘲，"棺材站"登上热搜',approval:-5,boss:-3},
+  {id:'night_economy', title:'夜经济成为全国标杆',desc:'珠江新城、上下九步行街夜间人流如织，外地游客赞叹不已',approval:7,boss:4},
+  {id:'pothole_viral', title:'"坑洼路"视频引发关注',desc:'市民拍下主干道坑洼路况发布网络，获得数百万播放',approval:-6,boss:-2},
+  {id:'elderly_subsidy',title:'老龄补贴政策被点赞',desc:'提高高龄补贴标准的政策在老年人群体中获得广泛好评',approval:8,boss:3},
+  {id:'official_weibo',title:'副市长政务微博走红',desc:'一位副市长的政务微博因风格亲民、言语生动走红网络',approval:7,boss:2},
+  {id:'bridge_collapse',title:'危桥事件引发安全担忧',desc:'某座老旧桥梁出现险情封桥维修，居民出行大受影响',approval:-7,boss:-4},
+  {id:'garbage_crisis',title:'垃圾分类执行引发争议',desc:'强制垃圾分类引发部分居民不满，矛盾在社交媒体发酵',approval:-4,boss:-1},
+  {id:'park_open',     title:'CBD新公园惊艳亮相',desc:'珠江新城新建的城市公园成为市民休闲打卡新去处',approval:6,boss:3},
+  {id:'traffic_report',title:'交通广播主持人夸赞广州',desc:'知名交通广播连续正面报道广州交通优化措施',approval:5,boss:4},
+  {id:'water_leak',    title:'自来水多次出现异味',desc:'多个小区居民反映自来水有异味，投诉持续增加',approval:-6,boss:-3},
+  {id:'homeless',      title:'流浪人员安置问题被曝光',desc:'救助管理问题被媒体深度报道，引发社会讨论',approval:-4,boss:-2},
+  {id:'new_airport',    title:'新机场航站楼获国际大奖',desc:'广州新机场设计获国际机场协会大奖，国际知名度提升',approval:5,boss:6},
+  {id:'school_fire',    title:'民办学校火灾事故',desc:'某民办学校发生火灾，虽无伤亡但引发安全大检查',approval:-5,boss:-3},
+  {id:'cantonese',      title:'粤语保护行动获海外点赞',desc:'政府推动粤语文化保护举措，引发海外华人共鸣',approval:6,boss:3},
+  {id:'parking_fee',    title:'路边停车收费涨价',desc:'核心区路边停车收费大幅上调，引发车主不满',approval:-5,boss:0},
+  {id:'fireworks',      title:'春节烟花表演刷屏',desc:'春节期间烟花表演的美照在朋友圈刷屏，城市形象大增',approval:7,boss:4},
+  {id:'elevator_death', title:'电梯坠落事故致人死亡',desc:'某商场电梯发生坠落事故，安全监管被质疑',approval:-8,boss:-5},
+  {id:'tech_talent',    title:'高层次人才净流入全国第一',desc:'数据显示广州连续净流入大量高层次人才',approval:5,boss:6},
+  {id:'hospital',       title:'三甲医院新建分院开业',desc:'优质医疗资源扩容，居民就近就医更方便',approval:7,boss:4},
+  {id:'fake_food',      title:'食品安全事件持续发酵',desc:'某连锁品牌被曝光食品问题，市民人心惶惶',approval:-7,boss:-4},
+  {id:'gov_app',        title:'政务App获好评',desc:'便民政务App推出多项实用功能，在应用商店获高评分',approval:5,boss:4},
+  {id:'starbucks',       title:'咖啡店入驻引发争议',desc:'某区引进知名咖啡品牌，部分人士持不同意见',approval:3,boss:-2},
+  {id:'pet_policy',     title:'养犬管理条例引争议',desc:'严格限犬令引发宠物主人群体在网络上激烈反对',approval:-3,boss:-1},
+  {id:'old_building',    title:'老城区改造引发乡愁',desc:'老旧小区改造过程中，部分历史建筑被拆引发争议',approval:-4,boss:-2},
+];
+
+var ADVISOR_TIPS = [
+  '拜访上级领导是积累政治资本的稳定途径，建议每半年至少安排一次。',
+  '招商引资能快速拉动GDP，但需警惕项目烂尾风险和空头支票。',
+  '民心和上级印象平时不可见，但会通过各种事件间接反映，请留意舆论风向。',
+  '与企业家私下接触的收益与风险并存，廉洁风险一旦突破警戒线后果严重。',
+  '重大基建项目是GDP的压舱石，但要严把质量和安全关。',
+  '每年末会揭晓你的真实民心与上级印象，建议在年中提前布局，争取高分。',
+  '危机事件的处置质量，往往是上级判断干部能力的核心标准。',
+  '文化品牌塑造虽不能立竿见影，但对城市长期影响深远。',
+  '生态环保与经济发展需要平衡，不可偏废任何一方。',
+  '进入任期后半段，稳健施政比冒险突进更为明智。',
+  '注意随机事件中暗含的舆论信号，它们往往预示着民心走向。',
+  '营商环境改革是长期工程，但对吸引投资有根本性作用。',
+];
+
+var state = {
+  cycle:1, gdp:100,
+  _approval:60, _boss:50,
+  _approval_prev:null, _boss_prev:null,
+  risk:0, logs:[],
+  selected:[],
+  majorEvents:[], ambientEvents:[],
+  earlyEnding:false,
+  // 历史记录：每个周期记录各项指标变化
+  history:[], // [{cycle, period, gdpD, approvalD, bossD, riskD, label, type}]
+};
+
+function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
+function rnd(base,v){return base+(Math.random()*2-1)*(v||base*0.5);}
+function rr(min,max){return min+Math.random()*(max-min);}
+
+function getCyclePeriod(c){
+  var monthStart=(c-1)*2+1;
+  var y=2027+Math.floor((monthStart-1)/12);
+  var m1=((monthStart-1)%12)+1;
+  var m2=Math.min(12,m1+1);
+  return{y:y,m1:m1,m2:m2,periodStr:y+'年'+m1+'-'+m2+'月'};
+}
+function getYearFromCycle(c){return Math.ceil(c/CYCLES_PER_YEAR);}
+function isYearEnd(c){return c%CYCLES_PER_YEAR===0;}
+
+function startGame(){
+  document.getElementById('startScreen').style.display='none';
+  document.getElementById('gameUI').style.display='block';
+  initGame();
+}
+
+function initGame(){
+  state={cycle:1,gdp:100,_approval:60,_boss:50,_approval_prev:null,_boss_prev:null,risk:0,logs:[],selected:[],majorEvents:[],ambientEvents:[],earlyEnding:false,history:[]};
+  document.getElementById('revealArea').style.display='none';
+  document.getElementById('endingOverlay').classList.remove('active');
+  document.getElementById('nameInputSection').style.display='none';
+  document.getElementById('restartBtn').style.display='inline-block';
+  renderCycleAxis();
+  generateAllEvents();
+  updateStatsUI(false);
+  renderActions();
+  updateAdvisorTip();
+  document.getElementById('confirmBtn').disabled=true;
+  document.getElementById('logPanel').innerHTML='<div class="log-entry type-year"><div style="font-size:10px;color:#888">2027年1-2月</div>就职广州市长，任期正式开始。百废待兴，全市上下充满期待，你将如何书写这五年？</div>';
+  renderLeaderboard();
+}
+
+function renderCycleAxis(){
+  var el=document.getElementById('cycleAxis');
+  el.innerHTML='';
+  for(var i=1;i<=TOTAL_CYCLES;i++){
+    if(i>1&&(i-1)%CYCLES_PER_YEAR===0){
+      var sep=document.createElement('div');
+      sep.className='ca-year-sep';
+      el.appendChild(sep);
+    }
+    var div=document.createElement('div');
+    div.className='ca-node'+(i<state.cycle?' done':i===state.cycle?' current':'');
+    el.appendChild(div);
+  }
+  var p=getCyclePeriod(state.cycle);
+  var yr=getYearFromCycle(state.cycle);
+  document.getElementById('sCycle').textContent=state.cycle;
+  document.getElementById('sPeriod').textContent=p.periodStr;
+  document.getElementById('sYearInfo').textContent='第 '+yr+' / 5 年';
+  document.getElementById('actionTitle').textContent='选择 '+p.periodStr+' 工作重点';
+  document.getElementById('headerSubtitle').textContent=p.y+' 年就任 &middot; 周期 '+state.cycle+' / 30';
+}
+
+function updateStatsUI(reveal){
+  var g=Math.round(state.gdp);
+  var r=Math.round(clamp(state.risk,0,100));
+  document.getElementById('sGDP').textContent=g;
+  document.getElementById('sRisk').textContent=r;
+  document.getElementById('pGDP').textContent=g;
+  document.getElementById('pRisk').textContent=r;
+  document.getElementById('bGDP').style.width=Math.max(2,Math.min(100,(g-50)*1.2))+'%';
+  document.getElementById('bRisk').style.width=r+'%';
+
+  if(reveal){
+    var a=Math.round(state._approval);
+    var b=Math.round(state._boss);
+    document.getElementById('cardApproval').classList.remove('hidden-score');
+    document.getElementById('cardBoss').classList.remove('hidden-score');
+    document.getElementById('sApproval').textContent=a;
+    document.getElementById('sBoss').textContent=b;
+  }else{
+    document.getElementById('cardApproval').classList.add('hidden-score');
+    document.getElementById('cardBoss').classList.add('hidden-score');
+    document.getElementById('sApproval').textContent='--';
+    document.getElementById('sBoss').textContent='--';
+  }
+}
+
+function generateAllEvents(){
+  var majorCount=6+Math.floor(Math.random()*5);
+  var shuffled=[].concat(MAJOR_EVENTS).sort(function(){return Math.random()-0.5});
+  state.majorEvents=shuffled.slice(0,majorCount);
+
+  var ambientCount=1+Math.floor(Math.random()*3);
+  var shuffledA=[].concat(AMBIENT_EVENTS).sort(function(){return Math.random()-0.5});
+  state.ambientEvents=shuffledA.slice(0,ambientCount);
+
+  renderEventList();
+}
+
+function renderEventList(){
+  var el=document.getElementById('eventList');
+  el.innerHTML='';
+  var all=[].concat(state.majorEvents,state.ambientEvents).sort(function(){return Math.random()-0.5});
+  document.getElementById('eventCount').textContent=all.length;
+  all.forEach(function(ev){
+    var card=document.createElement('div');
+    var isAmbient=!!ev.approval&&!ev.gdp;
+    card.className='event-card '+(ev.type||'neutral')+(isAmbient?' ambient':'');
+    var tags=(ev.tags||[]).map(function(t){
+      var cls=ev.type==='bad'?'tag-danger':ev.type==='good'?'tag-good':isAmbient?'tag-ambient':'tag-info';
+      return'<span class="event-tag '+cls+'">'+t+'</span>';
+    }).join('');
+    card.innerHTML='<div class="event-title">'+(isAmbient?'📰 ':'')+ev.title+'</div><div style="margin:2px 0">'+tags+'</div><div class="event-desc">'+ev.desc+'</div>';
+    el.appendChild(card);
+  });
+}
+
+function renderActions(){
+  var grid=document.getElementById('actionGrid');
+  grid.innerHTML='';
+  ACTIONS.forEach(function(a){
+    var btn=document.createElement('div');
+    btn.className='action-btn';
+    btn.id='action_'+a.id;
+    btn.innerHTML='<span class="a-icon">'+a.icon+'</span><span class="a-name">'+a.name+'</span><span class="a-desc">'+a.desc+'</span>';
+    btn.onclick=function(){handleActionClick(a.id);};
+    grid.appendChild(btn);
+  });
+  updateActionCount();
+}
+
+function handleActionClick(id){
+  var existing=state.selected.filter(function(s){return s.id===id;})[0];
+  if(existing){
+    var newP=existing.priority%3+1;
+    if(newP===1&&state.selected.filter(function(s){return s.priority===1&&s.id!==id;}).length>0){
+      state.selected=state.selected.filter(function(s){return s.id!==id;});
+    } else {
+      existing.priority=newP;
+    }
+  } else {
+    if(state.selected.length>=3){
+      state.selected.shift();
+    }
+    state.selected.push({id:id,priority:state.selected.length+1});
+  }
+  rebuildActionUI();
+  updateActionCount();
+  document.getElementById('confirmBtn').disabled=state.selected.length===0;
+}
+
+function rebuildActionUI(){
+  ACTIONS.forEach(function(a){
+    var btn=document.getElementById('action_'+a.id);
+    var sel=state.selected.filter(function(s){return s.id===a.id;})[0];
+    var badge=document.getElementById('badge_'+a.id);
+    if(sel){
+      var cls='selected'+sel.priority;
+      btn.className='action-btn '+cls;
+      if(!badge){badge=document.createElement('span');badge.id='badge_'+a.id;btn.appendChild(badge);}
+      badge.className='priority-badge pb'+sel.priority;
+      badge.textContent=sel.priority;
+    } else {
+      btn.className='action-btn';
+      if(badge)badge.remove();
+    }
+  });
+}
+
+function updateActionCount(){
+  var el=document.getElementById('actionCount');
+  if(state.selected.length===0){
+    el.textContent='尚未选择任何行动';
+  } else {
+    var names=state.selected.map(function(s){
+      var a=ACTIONS.filter(function(x){return x.id===s.id;})[0];
+      var labels=['①','②','③'];
+      return labels[s.priority-1]+a.name;
+    });
+    el.innerHTML='已选 '+state.selected.length+'/3 项：<br>'+names.join(' &nbsp;|&nbsp; ');
+  }
+}
+
+function updateAdvisorTip(){
+  var tips=[].concat(ADVISOR_TIPS);
+  if(state.risk>50) tips.unshift('⚠️ 廉洁风险已偏高！建议立即减少与商人私下往来。');
+  if(state.cycle>=24) tips.unshift('🚨 任期进入收官阶段，稳健第一，切勿留把柄。');
+  if(state.cycle>=18) tips.unshift('💡 距任期结束不足两年，政治布局需格外谨慎。');
+  var chosen=tips[Math.floor(Math.random()*Math.min(3,tips.length))];
+  document.getElementById('advisorTip').textContent=chosen;
+}
+
+function confirmCycle(){
+  if(state.selected.length===0) return;
+  var p=getCyclePeriod(state.cycle);
+  var logEntries=[];
+  var cycleGDP=0, cycleApproval=0, cycleBoss=0, cycleRisk=0;
+
+  // 主线大事件
+  state.majorEvents.forEach(function(ev){
+    var gdpD=ev.gdp+rnd(4);
+    var appD=ev.approval+rnd(2);
+    var bossD=ev.boss+rnd(2);
+    var riskD=(ev.risk||0)+rnd(1);
+    state.gdp+=gdpD;
+    state._approval=clamp(state._approval+appD,0,100);
+    state._boss=clamp(state._boss+bossD,0,100);
+    state.risk=clamp(state.risk+riskD,0,100);
+    cycleGDP+=gdpD; cycleApproval+=appD; cycleBoss+=bossD; cycleRisk+=riskD;
+    // 记录事件影响
+    if(Math.abs(gdpD)>=5||Math.abs(bossD)>=4||riskD>=3||Math.abs(appD)>=4){
+      state.history.push({cycle:state.cycle,period:p.periodStr,type:'event',
+        label:ev.title,gdpD:Math.round(gdpD),approvalD:Math.round(appD),bossD:Math.round(bossD),riskD:Math.round(riskD)});
+    }
+    var gdpStr=gdpD>3?'📈 GDP显著变化':'';
+    logEntries.push({type:ev.type==='bad'?'bad':'good',text:'【大事】'+ev.title+'。'+gdpStr});
+  });
+
+  // 氛围事件（隐蔽影响民心/上级）
+  state.ambientEvents.forEach(function(ev){
+    state._approval=clamp(state._approval+ev.approval,0,100);
+    state._boss=clamp(state._boss+ev.boss,0,100);
+    cycleApproval+=ev.approval; cycleBoss+=ev.boss;
+  });
+
+  // 行动（按优先级）
+  var pWeights=[0,0.5,0.3,0.2];
+  state.selected.forEach(function(sel){
+    var a=ACTIONS.filter(function(x){return x.id===sel.id;})[0];
+    var w=pWeights[sel.priority];
+    var gdpD=(a.gdp+rnd(a.varGDP||3))*w;
+    var bossD=(a.boss+rnd(a.varBoss||2))*w;
+    var riskD=(a.risk+rnd(a.varRisk||0))*w;
+    var approvalD=a.approval*w;
+    state.gdp+=gdpD;
+    state._approval=clamp(state._approval+approvalD,0,100);
+    state._boss=clamp(state._boss+bossD,0,100);
+    state.risk=clamp(state.risk+riskD,0,100);
+    cycleGDP+=gdpD; cycleApproval+=approvalD; cycleBoss+=bossD; cycleRisk+=riskD;
+    // 记录行动影响（所有行动都记录）
+    var wLabel=sel.priority===1?'①主攻':sel.priority===2?'②配合':'③辅助';
+    state.history.push({cycle:state.cycle,period:p.periodStr,type:'action',
+      label:wLabel+'·'+a.name,
+      gdpD:Math.round(gdpD),approvalD:Math.round(approvalD),bossD:Math.round(bossD),riskD:Math.round(riskD)});
+    var resultStr=gdpD>2*w?'成效显著':gdpD<-1*w?'短期承压':'正常推进';
+    logEntries.push({type:'info',text:'【'+wLabel+'】'+a.name+'（'+resultStr+'）'});
+  });
+
+  // 提前出局判定（概率性，风险95+才有被抓可能，概率随风险递增）
+  if(state.risk>=95&&!state.earlyEnding){
+    var catchProb=(state.risk-95)/100*0.35+0.08; // 95风险≈8%，98风险≈18%，100风险≈28%
+    if(Math.random()<catchProb){
+      state.earlyEnding=true;
+      appendLog(p,logEntries);
+      setTimeout(function(){showEnding('arrested');},600);
+      return;
+    }
+  }
+  if(state._approval<=5&&!state.earlyEnding){
+    state.earlyEnding=true;
+    appendLog(p,logEntries);
+    setTimeout(function(){showEnding('recall');},600);
+    return;
+  }
+  if(state._boss>=92&&state.cycle>=18&&!state.earlyEnding&&Math.random()<0.3){
+    state.earlyEnding=true;
+    appendLog(p,logEntries);
+    setTimeout(function(){showEnding('promoted_early');},600);
+    return;
+  }
+
+  appendLog(p,logEntries);
+
+  // 年末揭晓
+  if(isYearEnd(state.cycle)){
+    var prevA=state._approval_prev;
+    var prevB=state._boss_prev;
+    var aDelta=prevA!==null?(Math.round(state._approval)-prevA):0;
+    var bDelta=prevB!==null?(Math.round(state._boss)-prevB):0;
+    document.getElementById('yrTitle').textContent='📊 '+(2026+getYearFromCycle(state.cycle))+'年度施政评价揭晓';
+    document.getElementById('revealSection').innerHTML=
+      '<div class="reveal-card"><div class="rc-icon">👥</div><div class="rc-info"><div class="rc-name">民众满意度</div><div class="rc-value">'+Math.round(state._approval)+'</div></div><div class="rc-delta '+(aDelta>0?'up':aDelta<0?'down':'neutral')+'">'+(aDelta>0?'↑'+aDelta:aDelta<0?'↓'+Math.abs(aDelta):'→')+'</div></div>'+
+      '<div class="reveal-card"><div class="rc-icon">🏛️</div><div class="rc-info"><div class="rc-name">上级印象分</div><div class="rc-value">'+Math.round(state._boss)+'</div></div><div class="rc-delta '+(bDelta>0?'up':bDelta<0?'down':'neutral')+'">'+(bDelta>0?'↑'+bDelta:bDelta<0?'↓'+Math.abs(bDelta):'→')+'</div></div>';
+    state._approval_prev=Math.round(state._approval);
+    state._boss_prev=Math.round(state._boss);
+    document.getElementById('revealArea').style.display='block';
+    updateStatsUI(true);
+  }
+
+  state.selected=[];
+  rebuildActionUI();
+  updateActionCount();
+  document.getElementById('confirmBtn').disabled=true;
+  updateAdvisorTip();
+
+  state.cycle++;
+  renderCycleAxis();
+
+  if(state.cycle>TOTAL_CYCLES){
+    setTimeout(function(){showEnding('term_end');},800);
+    return;
+  }
+  generateAllEvents();
+}
+
+function appendLog(p,entries){
+  var panel=document.getElementById('logPanel');
+  entries.forEach(function(e){
+    var div=document.createElement('div');
+    div.className='log-entry type-'+e.type;
+    div.innerHTML='<div style="font-size:10px;color:#888">'+p.periodStr+'</div>'+e.text;
+    panel.appendChild(div);
+  });
+  panel.scrollTop=panel.scrollHeight;
+}
+
+function showEnding(type){
+  var g=Math.round(state.gdp);
+  var a=Math.round(state._approval);
+  var b=Math.round(state._boss);
+  var r=Math.round(clamp(state.risk,0,100));
+  var cyclesDone=state.cycle-1;
+  var yr=getYearFromCycle(state.cycle);
+  var p=getCyclePeriod(state.cycle);
+
+  // 秋后算账判定：任上未被抓，但廉政风险留下隐患
+  var futureInvestigation=false;
+  var investigationYearsLater=0;
+  if(!state.earlyEnding){
+    if(r>=60&&Math.random()<0.70){
+      futureInvestigation=true;
+      investigationYearsLater=2+Math.floor(Math.random()*4); // 2-5年后
+    } else if(r>=40&&Math.random()<0.30){
+      futureInvestigation=true;
+      investigationYearsLater=3+Math.floor(Math.random()*5); // 3-7年后
+    }
+  }
+
+  var icon,title,titleClass,desc;
+  if(type==='arrested'){
+    icon='⛓️';title='任上被双规调查';titleClass='ending-bad';
+    desc=p.y+'年，廉洁风险持续累积，省纪委收到多方举报材料。一纸调查令送达市委大院，你的从政生涯就此终结。廉洁是为官的底线，再多的政绩也换不来免于追究。';
+  } else if(type==='recall'){
+    icon='📋';title='提前免职';titleClass='ending-bad';
+    desc='民心指数跌至谷底，广州社会稳定压力引发省级高度关注。经省委研究决定，提前调整广州市主要领导，你黯然离场。';
+  } else if(type==='promoted_early'){
+    icon='🚀';title='提前获得提拔';titleClass='ending-great';
+    desc='上级对你施政成果高度认可，尤其在经济指标和政治口碑上的亮眼表现引起中央关注。在届满前你即获提拔，迈向更高舞台！';
+  } else {
+    var score=b*0.45+(g-100)*0.3+a*0.25-r*0.8;
+    var mainEnding='';
+    if(score>=28&&b>=68){
+      icon='🏅';title='荣升省级要职';titleClass='ending-great';
+      mainEnding='五年任期，你在经济建设、城市治理和政治生态各方面均有亮眼表现。届满后经组织研究，你将赴任省级领导岗位，前程似锦！';
+    } else if(score>=12&&b>=52){
+      icon='📈';title='平调重要城市';titleClass='ending-ok';
+      mainEnding='五年届满，整体施政表现稳健，得到组织认可。经研究决定平调至另一重要城市担任主要领导，继续在更大舞台上发挥作用。';
+    } else if(score>=0){
+      icon='🌅';title='退居二线';titleClass='ending-neutral';
+      mainEnding='五年届满，平稳走完全程。虽然部分指标未达理想，但未出重大事故。经组织安排，你担任人大、政协等二线职务，功成身退。';
+    } else {
+      icon='📦';title='提前安排交流离任';titleClass='ending-bad';
+      mainEnding='任期内多项指标未达预期，上级对施政表现有所保留。届满前安排交流，未能续任，低调结束了这段从政历程。';
+    }
+    // 秋后算账叙述
+    if(futureInvestigation){
+      desc=mainEnding+'然而，离任'+investigationYearsLater+'年后，省纪委巡回检察组对往期项目进行了深度复核，发现部分历史遗留问题涉及廉洁风险，相关线索移交司法处理。';
+      title=title+'（离任'+investigationYearsLater+'年后被查）';
+      titleClass='ending-bad';
+      icon='⛓️';
+    } else {
+      desc=mainEnding;
+    }
+  }
+
+  document.getElementById('endingIcon').textContent=icon;
+  document.getElementById('endingTitle').innerHTML='<span class="'+titleClass+'">'+title+'</span>';
+  document.getElementById('endingDesc').textContent=desc;
+  var riskColor=r>=80?'#f87171':r>=60?'#fbbf24':'#ffd700';
+  document.getElementById('endingStats').innerHTML=
+    '<div class="modal-stat"><div class="ms-label">在任周期</div><div class="ms-val">'+cyclesDone+' / 30</div></div>'+
+    '<div class="modal-stat"><div class="ms-label">GDP指数</div><div class="ms-val">'+g+'</div></div>'+
+    '<div class="modal-stat"><div class="ms-label">民心（末年）</div><div class="ms-val">'+a+'</div></div>'+
+    '<div class="modal-stat"><div class="ms-label">廉洁风险</div><div class="ms-val" style="color:'+riskColor+'">'+r+'</div></div>';
+  document.getElementById('modalDescLine').textContent='共计 '+cyclesDone+' 个双月周期 · '+(futureInvestigation?'⚠️ 离任后被追责':'✅ 安全着陆');
+  document.getElementById('endingOverlay').classList.add('active');
+  prepareEndingScore();
+}
+
+function restartGame(){
+  document.getElementById('endingOverlay').classList.remove('active');
+  document.getElementById('startScreen').style.display='block';
+  document.getElementById('gameUI').style.display='none';
+  document.getElementById('revealArea').style.display='none';
+  document.getElementById('nameInputSection').style.display='none';
+  document.getElementById('restartBtn').style.display='inline-block';
+  document.getElementById('playerNameInput').value='';
+  document.getElementById('highlightSection').style.display='grid';
+  initGame();
+  loadOnlineConfig();
+}
+
+// ===== 排行榜系统 =====
+var LB_KEY='gz_mayor_leaderboard';
+var lbSortBy='gdp';
+var pendingScore=null;
+
+function getLeaderboard(){
+  try{return JSON.parse(localStorage.getItem(LB_KEY))||[];}catch(e){return [];}
+}
+
+function saveLeaderboard(data){
+  localStorage.setItem(LB_KEY,JSON.stringify(data));
+}
+
+function getEndingBadgeClass(type){
+  if(type==='arrested'||type==='recall'||type.indexOf('被查')>-1) return'bad';
+  if(type==='promoted_early'||type.indexOf('荣升')>-1) return'great';
+  if(type==='recall'||type==='bad') return'bad';
+  return'neutral';
+}
+
+function getEndingLabel(type){
+  var map={
+    'arrested':'任上落马',
+    'recall':'提前免职',
+    'promoted_early':'提前提拔',
+    'term_end':'届满离任'
+  };
+  return map[type]||'届满离任';
+}
+
+function renderLeaderboard(){
+  var data=getLeaderboard();
+  var el=document.getElementById('lbList');
+  if(!el) return;
+  if(data.length===0){
+    el.innerHTML='<div class="lb-empty">暂无记录<br>完成一局游戏后可留名上榜</div>';
+    if(document.getElementById('lbCount')) document.getElementById('lbCount').textContent='（0人）';
+    return;
+  }
+  var sorted=data.slice().sort(function(a,b){
+    if(lbSortBy==='gdp') return b.gdp-a.gdp;
+    if(lbSortBy==='risk') return a.risk-b.risk;
+    if(lbSortBy==='cycle') return b.cycle-a.cycle;
+    return 0;
+  }).slice(0,10);
+  if(document.getElementById('lbCount')) document.getElementById('lbCount').textContent='（'+data.length+'人）';
+  var rankIcons=['🥇','🥈','🥉'];
+  el.innerHTML=sorted.map(function(item,i){
+    var rank=i<3?rankIcons[i]:'#'+(i+1);
+    var rClass=i===0?'gold':i===1?'silver':i===2?'bronze':'';
+    var badge=getEndingBadgeClass(item.endingType);
+    var riskColor=item.risk>=60?'#f87171':item.risk>=40?'#fbbf24':'#4ade80';
+    return'<div class="lb-entry">'+
+      '<div class="lb-rank '+rClass+'">'+rank+'</div>'+
+      '<div class="lb-info">'+
+        '<div class="lb-name">'+escHtml(item.name)+'<span class="lb-badge '+badge+'">'+getEndingLabel(item.endingType)+'</span></div>'+
+        '<div class="lb-meta">廉洁风险:'+item.risk+' · 在任'+item.cycle+'周期</div>'+
+      '</div>'+
+      '<div class="lb-score">'+
+        '<div class="lb-gdp">GDP '+item.gdp+'</div>'+
+        '<div class="lb-risk" style="color:'+riskColor+'">风险:'+item.risk+'</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function switchLbTab(tab){
+  lbSortBy=tab;
+  ['GDP','Risk','Cycle'].forEach(function(t){document.getElementById('lbTab'+t).classList.remove('active');});
+  document.getElementById('lbTab'+tab.charAt(0).toUpperCase()+tab.slice(1)).classList.add('active');
+  renderLeaderboard();
+}
+
+function prepareEndingScore(){
+  var g=Math.round(state.gdp);
+  var a=Math.round(state._approval);
+  var b=Math.round(state._boss);
+  var r=Math.round(clamp(state.risk,0,100));
+  var cyclesDone=state.cycle-1;
+  var score=b*0.45+(g-100)*0.3+a*0.25-r*0.8;
+  var futureInvestigation=false;
+  if(!state.earlyEnding){
+    if(r>=60&&Math.random()<0.70){futureInvestigation=true;}
+    else if(r>=40&&Math.random()<0.30){futureInvestigation=true;}
+  }
+  var endingType=state.earlyEnding?(state.risk>=95?'arrested':'recall'):'term_end';
+  if(futureInvestigation) endingType='future_investigation';
+  pendingScore={name:'',gdp:g,approval:a,boss:b,risk:r,cycle:cyclesDone,endingType:endingType,futureInvestigation:futureInvestigation};
+  document.getElementById('nameInputSection').style.display='block';
+  document.getElementById('restartBtn').style.display='none';
+  document.getElementById('playerNameInput').value='';
+  document.getElementById('playerNameInput').focus();
+  document.getElementById('nameSkipBtn').classList.remove('hidden');
+  document.getElementById('nameSaveBtn').disabled=false;
+  document.getElementById('nameTip').textContent='也可以留空直接开始新游戏';
+  renderLeaderboard();
+  // 显示高光/最差时刻
+  var hl=extractHighlights();
+  showHighlights(hl);
+}
+
+function saveToLeaderboard(){
+  var name=document.getElementById('playerNameInput').value.trim();
+  if(name){
+    pendingScore.name=name;
+  } else {
+    pendingScore.name='匿名官员';
+  }
+  var data=getLeaderboard();
+  data.push(pendingScore);
+  saveLeaderboard(data);
+  // 同时发送到联网排行榜
+  if(isOnlineMode){
+    postToOnline(pendingScore);
+  }
+  document.getElementById('nameInputSection').style.display='none';
+  document.getElementById('restartBtn').style.display='inline-block';
+  renderLeaderboard();
+}
+
+function skipAndRestart(){
+  pendingScore={name:'匿名官员',gdp:0,approval:0,boss:0,risk:0,cycle:0,endingType:'term_end',futureInvestigation:false};
+  var data=getLeaderboard();
+  data.push(pendingScore);
+  saveLeaderboard(data);
+  document.getElementById('nameInputSection').style.display='none';
+  renderLeaderboard();
+  restartGame();
+}
+
+function exportLeaderboard(){
+  var data=getLeaderboard();
+  if(data.length===0){alert('暂无记录可导出');return;}
+  var blob=new Blob([JSON.stringify(data, null, 2)],{type:'application/json'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;
+  a.download='广州市长排行榜_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importLeaderboard(fileInput){
+  var file=fileInput.files[0];
+  if(!file) return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var imported=JSON.parse(e.target.result);
+      if(!Array.isArray(imported)) throw new Error('格式错误');
+      var existing=getLeaderboard();
+      var existingNames={};
+      existing.forEach(function(x){existingNames[x.name+x.gdp+x.cycle]=true;});
+      var added=0;
+      imported.forEach(function(item){
+        if(item.name&&item.gdp!=null&&item.cycle!=null){
+          var key=item.name+item.gdp+item.cycle;
+          if(!existingNames[key]){existing.push(item);added++;}
+        }
+      });
+      saveLeaderboard(existing);
+      renderLeaderboard();
+      alert('成功导入 '+added+' 条新记录！共 '+existing.length+' 条记录。');
+    }catch(err){alert('导入失败：'+err.message);}
+    fileInput.value='';
+  };
+  reader.readAsText(file);
+}
+
+function clearLeaderboard(){
+  if(!confirm('确定清空所有排行榜记录？此操作不可恢复。')) return;
+  localStorage.removeItem(LB_KEY);
+  renderLeaderboard();
+}
+
+// ===== 高光/最差时刻分析 =====
+function extractHighlights(){
+  var hist=state.history;
+  if(hist.length===0) return null;
+
+  // 高光时刻：GDP提升最大，或民心提升最大
+  var bestGDP=null, bestApproval=null;
+  hist.forEach(function(h){
+    if(!bestGDP||h.gdpD>bestGDP.gdpD) bestGDP=h;
+    if(!bestApproval||h.approvalD>bestApproval.approvalD) bestApproval=h;
+  });
+  // 取综合最优（GDP权重60%，民心40%）
+  var bestOverall=null, bestScore=-999;
+  hist.forEach(function(h){
+    var score=h.gdpD*0.6+h.approvalD*0.4-h.riskD*0.3;
+    if(score>bestScore){bestScore=score;bestOverall=h;}
+  });
+
+  // 最差决策：上级印象暴跌最多、民心暴跌最多、廉政风险飙升最多
+  var worstBoss=null, worstApproval=null, worstRisk=null;
+  hist.forEach(function(h){
+    if(!worstBoss||h.bossD<worstBoss.bossD) worstBoss=h;
+    if(!worstApproval||h.approvalD<worstApproval.approvalD) worstApproval=h;
+    if(!worstRisk||h.riskD>worstRisk.riskD) worstRisk=h;
+  });
+  // 取综合最差（上级权重50%，风险权重40%，民心权重30%）
+  var worstOverall=null, worstScore=999;
+  hist.forEach(function(h){
+    var score=h.bossD*0.5+h.riskD*0.4+h.approvalD*0.3;
+    if(score<worstScore){worstScore=score;worstOverall=h;}
+  });
+
+  // 合并worst：风险飙升优先，其次上级印象暴跌
+  var worst=worstRisk&&worstRisk.riskD>=5?worstRisk:(worstBoss&&worstBoss.bossD<=-3?worstBoss:worstOverall);
+
+  return{best:bestOverall,worst:worst};
+}
+
+function formatDelta(v){
+  if(v===0||v===undefined||v===null) return'';
+  return(v>0?'+':'')+v;
+}
+
+function showHighlights(hl){
+  if(!hl) return;
+  // 高光时刻
+  var b=hl.best;
+  document.getElementById('hlBestTitle').textContent=b.label;
+  document.getElementById('hlBestMeta').textContent=b.period;
+  var bDeltas=[];
+  if(b.gdpD!==0) bDeltas.push('GDP '+formatDelta(b.gdpD));
+  if(b.approvalD!==0) bDeltas.push('民心 '+formatDelta(b.approvalD));
+  if(b.bossD!==0) bDeltas.push('上级 '+formatDelta(b.bossD));
+  document.getElementById('hlBestDelta').textContent=bDeltas.join(' · ')||'综合最优';
+
+  // 最差决策
+  var w=hl.worst;
+  document.getElementById('hlWorstTitle').textContent=w.label;
+  document.getElementById('hlWorstMeta').textContent=w.period;
+  var wDeltas=[];
+  if(w.bossD!==0) wDeltas.push('上级 '+formatDelta(w.bossD));
+  if(w.approvalD!==0) wDeltas.push('民心 '+formatDelta(w.approvalD));
+  if(w.riskD!==0) wDeltas.push('廉政风险 +'+w.riskD);
+  document.getElementById('hlWorstDelta').textContent=wDeltas.join(' · ')||'综合最差';
+}
+
+// ===== 联网排行榜（JSONBin.io）=====
+var ONLINE_KEY='gz_mayor_online';
+var isOnlineMode=false;
+var onlineBinId=null;
+var onlineKey=null;
+var LB_API='https://api.jsonbin.io/v3/b';
+
+function loadOnlineConfig(){
+  try{
+    var cfg=JSON.parse(localStorage.getItem(ONLINE_KEY)||'{}');
+    onlineBinId=cfg.binId||null;
+    onlineKey=cfg.key||'';
+    isOnlineMode=!!onlineBinId;
+  }catch(e){isOnlineMode=false;}
+  updateOnlineBadge();
+}
+
+function saveOnlineConfig(){
+  localStorage.setItem(ONLINE_KEY,JSON.stringify({binId:onlineBinId,key:onlineKey}));
+}
+
+function updateOnlineBadge(){
+  var badge=document.getElementById('lbOnlineBadge');
+  if(!badge) return;
+  if(isOnlineMode){
+    badge.className='lb-online-badge';
+    badge.textContent='🟢 联网中';
+  } else {
+    badge.className='lb-online-badge offline';
+    badge.textContent='未连接';
+  }
+}
+
+function toggleOnlineMode(){
+  var cfg=document.getElementById('apiConfig');
+  if(cfg.style.display==='none'){
+    cfg.style.display='block';
+    if(onlineBinId) document.getElementById('apiBinId').value=onlineBinId;
+    if(onlineKey) document.getElementById('apiKey').value=onlineKey;
+  } else {
+    cfg.style.display='none';
+  }
+}
+
+function connectOnline(){
+  var binId=document.getElementById('apiBinId').value.trim();
+  var key=document.getElementById('apiKey').value.trim();
+  if(!binId){alert('请先输入 Bin ID');return;}
+  onlineBinId=binId;
+  onlineKey=key;
+  isOnlineMode=true;
+  saveOnlineConfig();
+  updateOnlineBadge();
+  document.getElementById('apiConfig').style.display='none';
+  document.getElementById('lbHint').textContent='🌐 已连接 jsonbin.io · 共享同一 Bin ID 的玩家将看到彼此成绩';
+  fetchOnlineLeaderboard();
+}
+
+function testOnlineConnection(){
+  var binId=document.getElementById('apiBinId').value.trim();
+  if(!binId){alert('请先输入 Bin ID');return;}
+  var headers={'Content-Type':'application/json'};
+  var key=document.getElementById('apiKey').value.trim();
+  if(key) headers['X-Access-Key']=key;
+  var btn=event.target;
+  btn.textContent='⏳ 测试中...';
+  fetch(LB_API+'/'+binId+'/latest',{method:'GET',headers:headers})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      btn.textContent='✅ 连接成功！';
+      setTimeout(function(){btn.textContent='🔄 测试连接';},2000);
+      // 填充
+      document.getElementById('apiBinId').value=binId;
+      document.getElementById('apiKey').value=key;
+    })
+    .catch(function(){
+      btn.textContent='❌ 连接失败';
+      setTimeout(function(){btn.textContent='🔄 测试连接';},2000);
+    });
+}
+
+function fetchOnlineLeaderboard(){
+  if(!isOnlineMode||!onlineBinId) return;
+  var headers={'Content-Type':'application/json'};
+  if(onlineKey) headers['X-Access-Key']=onlineKey;
+  fetch(LB_API+'/'+onlineBinId+'/latest',{method:'GET',headers:headers})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d&&d.record&&Array.isArray(d.record)){
+        var onlineData=d.record;
+        var localData=getLeaderboard();
+        var merged=localData.concat(onlineData);
+        // 去重（同name+cycle只保留一条，优先online的）
+        var seen={};
+        merged.forEach(function(x){seen[x.name+x.cycle+'']=x;});
+        var unique=Object.values(seen);
+        saveLeaderboard(unique);
+        renderLeaderboard();
+      }
+    })
+    .catch(function(){});
+}
+
+function postToOnline(data){
+  if(!isOnlineMode||!onlineBinId) return;
+  var headers={'Content-Type':'application/json'};
+  if(onlineKey) headers['X-Access-Key']=onlineKey;
+  // 先获取现有数据
+  fetch(LB_API+'/'+onlineBinId+'/latest',{method:'GET',headers:headers})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      var existing=d&&d.record&&Array.isArray(d.record)?d.record:[];
+      existing.push(data);
+      var merged=existing;
+      var seen={};
+      merged.forEach(function(x){seen[x.name+x.cycle+'']=x;});
+      var unique=Object.values(seen);
+      return fetch(LB_API+'/'+onlineBinId,{
+        method:'PUT',headers:headers,
+        body:JSON.stringify(unique)
+      });
+    })
+    .catch(function(){
+      // 创建新bin
+      fetch(LB_API,{
+        method:'POST',headers:{'Content-Type':'application/json','X-Access-Key':onlineKey||''},
+        body:JSON.stringify([data])
+      }).catch(function(){});
+    });
+}
+
+// 在页面加载时也渲染排行榜
+window.addEventListener('load',function(){
+  loadOnlineConfig();
+  renderLeaderboard();
+  if(isOnlineMode) fetchOnlineLeaderboard();
+});
+renderLeaderboard();
+loadOnlineConfig();
+</script>
+</body>
+</html>
